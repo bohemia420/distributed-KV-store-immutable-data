@@ -28,22 +28,23 @@ Fault Tolerance, fuels (High)Availability described above, and are somewhere rel
 - *"low-latency"* look-up: \
 _Capability_-> \
 (Efficient Routing and Retrieval)- the 'data loader' indexes Key-Values basis the key hash, into a mapped shard, which the Master Node via, Consistent Hashing, maintains and quickly looks up during retrieval. \
-_Ideas for Extension_ -> Basis the load at present at the nodes, and furthermore, when "data" maybe subject to "mutations", the replicas may be pegged to answer any retrieval queries. 
+_Ideas for Extension_ -> \
+Basis the load at present at the nodes, and furthermore, when "data" maybe subject to "mutations", the replicas may be pegged to answer any retrieval queries. 
 
 - *Durability*: \
 _Ideas for Extension_: we may implement: \
 a. Shard Size/number per keyspace best practices, just like Elasticsearch indexes settings. \
-b. Disk Spills: E.g 'overflowing' shards may be allowed to spill further records into disks, as a tradeoff to cost-savviness(or resource constrainrs) v/s latency. \
+b. Disk Spills: E.g 'overflowing' shards may be allowed to spill further records into disks, as a tradeoff to cost-savviness(or resource constrainrs) v/s latency. 
 
 Furthermore, it incorporates some other good-to-have capabilities as following practices:
 
 #### Data Load:
--> Data Load/Indexing with Checkpointing: File(s) are read as 'chunks' of N rows each.  
--> Data Load/Indexing with speed and memory optimization: furthermore processed 'parallely' using multiprocessing in Python.
+-> Data Load/Indexing with Checkpointing: File(s) are read as 'chunks' of N rows each.  \
+-> Data Load/Indexing with speed and memory optimization: furthermore processed 'parallely' using multiprocessing in Python.\
 -> (Atleast-Once) Data Load Semantics: The chunk_ids are 'checkpointed' only after successful processing. 
 
 #### Data Persistence:
--> Routing: UUID4 Keys are hashed and mapped accordingly into similar shards, which are maintained using Consistent Hashing Ring and easily looked up by Master Node during Retrieval.
+-> Routing: UUID4 Keys are hashed and mapped accordingly into similar shards, which are maintained using Consistent Hashing Ring and easily looked up by Master Node during Retrieval.\
 -> Transport: using GRPC atop Protobufs, allows lesser network I/O, latency, as a choice for high-performance applications.
 
 #### Implementation:
@@ -103,7 +104,7 @@ This should show up a CLI like below:
 
 ## FAQs:
 - How much data can your server handle? How could you improve it so it can handle even larger datasets? \
-_Ans_: The approach, if combined with:\
+_Ans_: The approach, if combined with:
 1. An AutoScaling aspect, either an ASG or HPA, VPA
 2. Faster, parallel writes
 3. Capabilities to Disk Spills
@@ -125,7 +126,7 @@ The Latency can be improved, further as: \
 -> Better tech stack of implementation, e.g a Low Level Language like C++ (that also has Redis, Algolia, SkyllaDB etc. all implemented in). Python as a high-level is anyways not a good choice thanks to GIL aching concurrency (FastAPI with asynchronous Startlette/Waitress is albeit good enough). Java can give better mileage, far as immutability is assured- GC overheads are otherwise problematic! \
 -> We already did "Keyspacing".\
 -> We already did "gRPC" over HTTP/2 using Protobufs.\
--> Avoiding Anti-Patterns e.g RF = Num of Nodes because cluster shall be, esp when records are mutable, simply always getting the cluster 'consistent'- lots of Network I/O. \
+-> Avoiding Anti-Patterns e.g RF = Num of Nodes because cluster shall be, esp when records are mutable, simply always getting the cluster 'consistent'- lots of Network I/O.
 
 - What are some failure patterns that you can anticipate? \
 _Ans_:
