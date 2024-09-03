@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package master_node;
+
+service MasterNode {
+    rpc Put(NodeRequest) returns (NodeResponse);
+    rpc Get(NodeRequest) returns (NodeResponse);
+    rpc Rebalance(Empty) returns (Status);
+}
+
+message NodeRequest {
+    string key = 1;
+    string value = 2;
+}
+
+message NodeResponse {
+    string status = 1;
+    string value = 2;
+}
+
+message Empty {}
+
+message Status {
+    string message = 1;
+}
+

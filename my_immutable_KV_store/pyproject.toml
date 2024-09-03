@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "my-immutable-kv-store"
+version = "0.1.0"
+description = ""
+authors = ["bohemia420 <ksumeet40@gmail.com>"]
+readme = "README.md"
+packages = [{include = "my_immutable_kv_store", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
