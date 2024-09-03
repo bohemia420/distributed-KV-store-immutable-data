@@ -15,19 +15,23 @@ from loguru import logger
 
 class KVCli(cmd.Cmd):
     prompt = '> '
+    keyspace = Config.DEFAULT_KEYSPACE
 
-    @staticmethod
+    @classmethod
+    def do_use(cls, keyspace):
+        cls.keyspace = keyspace
+
+    @classmethod
     @timeit(level='WARNING')
-    def do_get(key):
+    def do_get(cls, key):
         try:
-            response = requests.get(f"http://localhost:{Config.MASTER_PORT}/get?key={key}").json()
+            response = requests.get(f"http://localhost:{Config.MASTER_PORT}/get?key={key}&keyspace={cls.keyspace}").json()
             if response['status'] == 'success':
                 logger.success(response['value'])
             else:
                 logger.debug("None")
         except Exception as e:
             logger.critical(f"error retrieving key-value. Msg: {e.__str__()}")
-
 
     @staticmethod
     def do_quit(msg=None):

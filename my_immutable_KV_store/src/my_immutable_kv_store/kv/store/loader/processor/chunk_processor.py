@@ -26,6 +26,6 @@ class ChunkProcessor(ChunkProcessorInterface):
                 continue
             try:
                 key, value = line.strip().split(maxsplit=1)
-                stub.Put(master_node_pb2.NodeRequest(key=key, value=value))
+                stub.Put(master_node_pb2.NodeRequest(key=key, value=value, keyspace=keyspace))
             except ValueError:
                 logger.warning(f"Skipping invalid line: {line}")

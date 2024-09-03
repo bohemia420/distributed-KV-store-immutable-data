@@ -32,7 +32,7 @@ def load_data(keyspace, path):
 def main():
     args = parse_args()
     data_arg = args.data
-    keyspace, path = data_arg.split(':', 1) if ':' in data_arg else 'default', data_arg
+    keyspace, path = data_arg.split(':', 1) if ':' in data_arg else Config.DEFAULT_KEYSPACE, data_arg
 
     processes = [multiprocessing.Process(target=services.Services.start_master_node)]
     for i in range(Config.NODE_COUNT):

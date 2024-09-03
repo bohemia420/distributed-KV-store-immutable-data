@@ -1,4 +1,5 @@
 class Config:
+    DEFAULT_KEYSPACE = 'default'
     GRPC_MASTER_PORT = 50050  # master listens to cli at 9000/REST over HTTP, but the system internally uses gRPC
     GRPC_PORT = 50051  # GRPC Ports for DataNode(s)
     HEARTBEAT_INTERVAL = 10  # Master keeps checking Node Health, eliminates/reshards the failed node/remaining nodes

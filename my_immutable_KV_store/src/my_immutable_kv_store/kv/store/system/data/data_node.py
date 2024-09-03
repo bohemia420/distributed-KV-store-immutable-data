@@ -28,11 +28,15 @@ class DataNodeServicer(data_node_pb2_grpc.DataNodeServicer):
         self.storage = {}
 
     def Put(self, request, context):
-        self.storage[request.key] = request.value
+        if request.keyspace not in self.storage:
+            self.storage[request.keyspace] = {}
+        self.storage[request.keyspace][request.key] = request.value
         return data_node_pb2.PutResponse(status="SUCCESS")
 
     def Get(self, request, context):
-        value = self.storage.get(request.key, "")
+        if request.keyspace not in self.storage:
+            return data_node_pb2.GetResponse(status="NOT_FOUND", value=None)
+        value = self.storage[request.keyspace].get(request.key, None)
         return data_node_pb2.GetResponse(status="SUCCESS" if value else "NOT_FOUND", value=value)
 
     def Heartbeat(self, request, context):
@@ -55,7 +59,7 @@ def serve_grpc(node_id):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     p = multiprocessing.Process(target=serve_grpc, args=(NODE_ID,))
     p.start()
     yield

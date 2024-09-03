@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11master_node.proto\x12\x0bmaster_node\")\n\x0bNodeRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"-\n\x0cNodeResponse\x12\x0e\n\x06status\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\x07\n\x05\x45mpty\"\x19\n\x06Status\x12\x0f\n\x07message\x18\x01 \x01(\t2\xba\x01\n\nMasterNode\x12:\n\x03Put\x12\x18.master_node.NodeRequest\x1a\x19.master_node.NodeResponse\x12:\n\x03Get\x12\x18.master_node.NodeRequest\x1a\x19.master_node.NodeResponse\x12\x34\n\tRebalance\x12\x12.master_node.Empty\x1a\x13.master_node.Statusb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11master_node.proto\x12\x0bmaster_node\";\n\x0bNodeRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x12\x10\n\x08keyspace\x18\x03 \x01(\t\"-\n\x0cNodeResponse\x12\x0e\n\x06status\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\x07\n\x05\x45mpty\"\x19\n\x06Status\x12\x0f\n\x07message\x18\x01 \x01(\t2\xba\x01\n\nMasterNode\x12:\n\x03Put\x12\x18.master_node.NodeRequest\x1a\x19.master_node.NodeResponse\x12:\n\x03Get\x12\x18.master_node.NodeRequest\x1a\x19.master_node.NodeResponse\x12\x34\n\tRebalance\x12\x12.master_node.Empty\x1a\x13.master_node.Statusb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,13 +32,13 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'master_node_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_NODEREQUEST']._serialized_start=34
-  _globals['_NODEREQUEST']._serialized_end=75
-  _globals['_NODERESPONSE']._serialized_start=77
-  _globals['_NODERESPONSE']._serialized_end=122
-  _globals['_EMPTY']._serialized_start=124
-  _globals['_EMPTY']._serialized_end=131
-  _globals['_STATUS']._serialized_start=133
-  _globals['_STATUS']._serialized_end=158
-  _globals['_MASTERNODE']._serialized_start=161
-  _globals['_MASTERNODE']._serialized_end=347
+  _globals['_NODEREQUEST']._serialized_end=93
+  _globals['_NODERESPONSE']._serialized_start=95
+  _globals['_NODERESPONSE']._serialized_end=140
+  _globals['_EMPTY']._serialized_start=142
+  _globals['_EMPTY']._serialized_end=149
+  _globals['_STATUS']._serialized_start=151
+  _globals['_STATUS']._serialized_end=176
+  _globals['_MASTERNODE']._serialized_start=179
+  _globals['_MASTERNODE']._serialized_end=365
 # @@protoc_insertion_point(module_scope)

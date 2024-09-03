@@ -6,6 +6,9 @@ from concurrent import futures
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache.decorator import cache
 from grpc_reflection.v1alpha import reflection
 from time import sleep
 import threading
@@ -32,41 +35,42 @@ class MasterNodeServicer(master_node_pb2_grpc.MasterNodeServicer):
             replication_factor=Config.REPLICATION_FACTOR,
             nodes=Config.NODE_COUNT
         )
-        self.node_status = {f"node_{i}": {"port": Config.DATA_PORT+i, "grpc_port": Config.GRPC_PORT+i} for i in range(Config.NODE_COUNT)}
+        self.node_status = {f"node_{i}": {"port": Config.DATA_PORT+i, "grpc_port": Config.GRPC_PORT+i} \
+                            for i in range(Config.NODE_COUNT)}
         self.failed_nodes = set()
 
     def Put(self, request, context):
-        shard_id = self.consistent_hashing.get_shard_id(request.key)
+        shard_id = self.consistent_hashing.get_shard_id(f"{request.keyspace}#{request.key}")
         node_id = self.consistent_hashing.get_node_for_shard(shard_id)
         node = self.node_status[f"node_{node_id}"]
 
         channel = grpc.insecure_channel(f'localhost:{node["grpc_port"]}')
         stub = data_node_pb2_grpc.DataNodeStub(channel)
-        response = stub.Put(data_node_pb2.PutRequest(key=request.key, value=request.value))
+        response = stub.Put(data_node_pb2.PutRequest(key=request.key, value=request.value, keyspace=request.keyspace))
 
         return master_node_pb2.NodeResponse(status=response.status)
 
     def Get(self, request, context):
-        shard_id = self.consistent_hashing.get_shard_id(request.key)
+        shard_id = self.consistent_hashing.get_shard_id(f"{request.keyspace}#{request.key}")
         node_id = self.consistent_hashing.get_node_for_shard(shard_id)
         node = self.node_status[f"node_{node_id}"]
 
         channel = grpc.insecure_channel(f'localhost:{node["grpc_port"]}')
         stub = data_node_pb2_grpc.DataNodeStub(channel)
-        response = stub.Get(data_node_pb2.GetRequest(key=request.key))
+        response = stub.Get(data_node_pb2.GetRequest(key=request.key, keyspace=request.keyspace))
 
         return master_node_pb2.NodeResponse(status=response.status, value=response.value)
 
     def Rebalance(self, request, context):
-        new_shard_map = self.consistent_hashing.rebalance_shards(failed_node_id=None)
-
-        for node_id, shards in new_shard_map.items():
-            node = self.node_status[node_id]
-            channel = grpc.insecure_channel(f'{node["address"]}:{node["port"]}')
-            stub = data_node_pb2_grpc.DataNodeStub(channel)
-            for shard_hash in shards:
-                # TODO: Implement re-balancing of shards in case of new node added/existing deleted
-                pass
+        # new_shard_map = self.consistent_hashing.rebalance_shards(failed_node_id=None)
+        #
+        # for node_id, shards in new_shard_map.items():
+        #     node = self.node_status[node_id]
+        #     channel = grpc.insecure_channel(f'{node["address"]}:{node["port"]}')
+        #     stub = data_node_pb2_grpc.DataNodeStub(channel)
+        #     for shard_hash in shards:
+        #         # TODO: Implement re-balancing of shards in case of new node added/existing deleted
+        #         pass
         return master_node_pb2.Status(message="Rebalancing completed.")
 
     def check_heartbeats(self):
@@ -109,7 +113,8 @@ def serve_grpc():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
+    FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
     p = multiprocessing.Process(target=serve_grpc, args=())
     p.start()
     yield
@@ -125,10 +130,12 @@ async def health_check():
 
 
 @app.get("/get")
-async def retrieve(key=None):
+@cache(expire=60)
+async def retrieve(key=None, keyspace=None):
+    keyspace = Config.DEFAULT_KEYSPACE if not keyspace else keyspace
     channel = grpc.insecure_channel(f'localhost:{Config.GRPC_MASTER_PORT}')
     stub = master_node_pb2_grpc.MasterNodeStub(channel)
-    response = stub.Get(master_node_pb2.NodeRequest(key=key, value=None))
+    response = stub.Get(master_node_pb2.NodeRequest(key=key, value=None, keyspace=keyspace))
     if response.value:
         return {"status": "success", "value": response.value}
     else:

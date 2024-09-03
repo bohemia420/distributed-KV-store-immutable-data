@@ -11,6 +11,7 @@ service MasterNode {
 message NodeRequest {
     string key = 1;
     string value = 2;
+    string keyspace = 3;
 }
 
 message NodeResponse {

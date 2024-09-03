@@ -22,3 +22,4 @@ termcolor==2.4.0
 typing_extensions==4.12.2
 urllib3==2.2.2
 uvicorn==0.30.6
+fastapi-cache2==0.2.2
