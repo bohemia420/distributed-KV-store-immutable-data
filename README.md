@@ -61,6 +61,23 @@ Overall, the design of this implementation, is highly inspired from:
 ![HighLevel Design](docs/img/HighLevel_KVStore.png)
 
 ## SetUp and Run:
+Requisites:
+- preferably unix-OS like MacOS, Ubuntu.
+- python3 installed, preferably >=python3.10
+- `git`, `virtualenv` should be installed.
+
+Install Env:
+```shell
+pushd `pwd`
+git clone git@github.com:bohemia420/sdnuobretuo_KV_assignment.git
+cd sdnuobretuo_KV_assignment
+python3.10 -m venv .venv_311
+source .venv_311/bin/activate
+pip install -r my_immutable_KV_store/requirements.txt
+deactivate
+popd
+```
+
 __For Starting the KV Store Up:__
 ```shell
 pushd `pwd`
@@ -103,16 +120,16 @@ The Latency can be improved, further as: \
 -> introducing Cacheing Layers, both at MasterNode as well as DataNodes(they keep it all in memory but have to look up further into shards).\
 -> leveraging replicas esp when primary shards may also withstand extensive 'writes'.\
 -> trying not to "spill" the overflowing KV rows into 'disk'. \
--> Dictionaries are bound to give O(NlogN) where N is number of Keys, as these are [Weight-Balanced Trees](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree) underneath.  
--> Mitigating 'Network I/O' as much as possible. DataNode(s) and MasterNodes can be colocated from anywhere being in same rack to atleast same [AZ](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html), or Region.
--> Better tech stack of implementation, e.g a Low Level Language like C++ (that also has Redis, Algolia, SkyllaDB etc. all implemented in). Python as a high-level is anyways not a good choice thanks to GIL aching concurrency (FastAPI with asynchronous Startlette/Waitress is albeit good enough). Java can give better mileage, far as immutability is assured- GC overheads are otherwise problematic!
--> We already did "Keyspacing".
--> We already did "gRPC" over HTTP/2 using Protobufs.
--> Avoiding Anti-Patterns e.g RF = Num of Nodes because cluster shall be, esp when records are mutable, simply always getting the cluster 'consistent'- lots of Network I/O. 
+-> Dictionaries are bound to give O(NlogN) where N is number of Keys, as these are [Weight-Balanced Trees](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree) underneath. \
+-> Mitigating 'Network I/O' as much as possible. DataNode(s) and MasterNodes can be colocated from anywhere being in same rack to atleast same [AZ](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html), or Region. \
+-> Better tech stack of implementation, e.g a Low Level Language like C++ (that also has Redis, Algolia, SkyllaDB etc. all implemented in). Python as a high-level is anyways not a good choice thanks to GIL aching concurrency (FastAPI with asynchronous Startlette/Waitress is albeit good enough). Java can give better mileage, far as immutability is assured- GC overheads are otherwise problematic! \
+-> We already did "Keyspacing".\
+-> We already did "gRPC" over HTTP/2 using Protobufs.\
+-> Avoiding Anti-Patterns e.g RF = Num of Nodes because cluster shall be, esp when records are mutable, simply always getting the cluster 'consistent'- lots of Network I/O. \
 
 - What are some failure patterns that you can anticipate? \
 _Ans_:
-1. Out Of Memory Errors- if data to be served is huge, doesnt fit in RAM constraints of datanodes, and disk spill isn't viable.\
+1. Out Of Memory Errors- if data to be served is huge, doesnt fit in RAM constraints of datanodes, and disk spill isn't viable.
 2. Node failures- resharding may be a time-taking process, albeit reads(only) should still be admissible
 3. Hash Collisions, are but very unlikely. 
 4. We mitigated failures that indexing could have caused. Albeit, it will be better to have and use integrations to Distributed Data Processing frameworks e.g Spark, Hadoop that can "better" Bulk Index the KV Records, e.g [Spark-ES Connector](https://discuss.elastic.co/t/connector-for-elastic-search-8-6-2-and-databricks-spark-3-4-0/342746). 
