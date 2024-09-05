@@ -26,7 +26,7 @@ class KVCli(cmd.Cmd):
     def do_get(cls, key):
         try:
             response = requests.get(f"http://localhost:{Config.MASTER_PORT}/get?key={key}&keyspace={cls.keyspace}").json()
-            if response['status'] == 'success':
+            if response['status'] == Config.SUCCESS:
                 logger.success(response['value'])
             else:
                 logger.debug("None")

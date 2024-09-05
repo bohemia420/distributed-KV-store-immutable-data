@@ -126,6 +126,7 @@ The Latency can be improved, further as: \
 -> Better tech stack of implementation, e.g a Low Level Language like C++ (that also has Redis, Algolia, SkyllaDB etc. all implemented in). Python as a high-level is anyways not a good choice thanks to GIL aching concurrency (FastAPI with asynchronous Startlette/Waitress is albeit good enough). Java can give better mileage, far as immutability is assured- GC overheads are otherwise problematic! \
 -> We already did "Keyspacing".\
 -> We already did "gRPC" over HTTP/2 using Protobufs.\
+-> Use a gRPC channel pool against respective data_node, this must however be properly 'LifeCycleManaged', i.e when datanode goes down / new added. \ 
 -> Avoiding Anti-Patterns e.g RF = Num of Nodes because cluster shall be, esp when records are mutable, simply always getting the cluster 'consistent'- lots of Network I/O.
 
 - What are some failure patterns that you can anticipate? \

@@ -29,18 +29,18 @@ class DataNodeServicer(data_node_pb2_grpc.DataNodeServicer):
 
     def Put(self, request, context):
         if request.keyspace not in self.storage:
-            self.storage[request.keyspace] = {}
-        self.storage[request.keyspace][request.key] = request.value
-        return data_node_pb2.PutResponse(status="SUCCESS")
+            self.storage[request.keyspace] = {request.shard: {}}
+        self.storage[request.keyspace][request.shard][request.key] = request.value
+        return data_node_pb2.PutResponse(status=Config.SUCCESS)
 
     def Get(self, request, context):
         if request.keyspace not in self.storage:
-            return data_node_pb2.GetResponse(status="NOT_FOUND", value=None)
-        value = self.storage[request.keyspace].get(request.key, None)
-        return data_node_pb2.GetResponse(status="SUCCESS" if value else "NOT_FOUND", value=value)
+            return data_node_pb2.GetResponse(status=Config.NOT_FOUND, value=None)
+        value = self.storage[request.keyspace][request.shard].get(request.key, None)
+        return data_node_pb2.GetResponse(status=Config.SUCCESS if value else Config.NOT_FOUND, value=value)
 
     def Heartbeat(self, request, context):
-        return data_node_pb2.HeartbeatResponse(status="OK")
+        return data_node_pb2.HeartbeatResponse(status=Config.SUCCESS)
 
 
 def serve_grpc(node_id):
@@ -63,6 +63,7 @@ async def lifespan(_: FastAPI):
     p = multiprocessing.Process(target=serve_grpc, args=(NODE_ID,))
     p.start()
     yield
+    p.kill()
     #  TODO: Implement graceful Shutdown of GRPC and FastAPI services
 
 app = FastAPI(lifespan=lifespan)
@@ -70,7 +71,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health_check():
-    return {"status": "OK"}
+    return {"status": Config.SUCCESS}
 
 if __name__ == "__main__":
     import uvicorn

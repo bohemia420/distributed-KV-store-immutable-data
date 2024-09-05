@@ -28,7 +28,7 @@ class Services:
             stub = data_node_pb2_grpc.DataNodeStub(channel)
             try:
                 response = stub.Heartbeat(data_node_pb2.HeartbeatRequest())
-                if response.status != 'OK':
+                if response.status != Config.SUCCESS:
                     logger.error(f"Node {node_id} at port {port} is not healthy!")
                     return False
             except grpc.RpcError:

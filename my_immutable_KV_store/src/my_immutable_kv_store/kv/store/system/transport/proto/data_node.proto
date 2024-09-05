@@ -12,6 +12,7 @@ message PutRequest {
     string key = 1;
     string value = 2;
     string keyspace = 3;
+    string shard = 4;
 }
 
 message PutResponse {
@@ -21,6 +22,7 @@ message PutResponse {
 message GetRequest {
     string key = 1;
     string keyspace = 2;
+    string shard = 3;
 }
 
 message GetResponse {
