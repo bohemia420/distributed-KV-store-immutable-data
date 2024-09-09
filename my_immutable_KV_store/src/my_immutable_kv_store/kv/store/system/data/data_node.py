@@ -30,6 +30,8 @@ class DataNodeServicer(data_node_pb2_grpc.DataNodeServicer):
     def Put(self, request, context):
         if request.keyspace not in self.storage:
             self.storage[request.keyspace] = {request.shard: {}}
+        if request.shard not in self.storage[request.keyspace]:
+            self.storage[request.keyspace][request.shard] = {}
         self.storage[request.keyspace][request.shard][request.key] = request.value
         return data_node_pb2.PutResponse(status=Config.SUCCESS)
 

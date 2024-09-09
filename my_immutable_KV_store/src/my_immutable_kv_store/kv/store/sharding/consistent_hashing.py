@@ -39,7 +39,7 @@ class ConsistentHashing:
         key_hash = self._hash(key)
         if not keyspace in self.ring:
             return None
-        shard_pos = bisect.bisect(self.ring[keyspace], key_hash) % len(self.ring)
+        shard_pos = bisect.bisect(self.ring[keyspace], key_hash) % len(self.ring[keyspace])
         return self.ring[keyspace][shard_pos]
 
     def get_node_for_shard(self, keyspace, shard_id):

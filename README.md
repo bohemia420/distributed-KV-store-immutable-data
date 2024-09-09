@@ -5,10 +5,15 @@
 **Context**: As described in [systems-assignment](https://github.com/savingoyal/systems-assignment/tree/main?tab=readme-ov-file) problem statement, this repository contains an implementation of a `Key-Value Database`, that hosts KV pairs of immutable data, and by the virtue of being a *Distributed KV Store*, stays: 
 - **scalable**(Volume of KV rows),\
 _Capability_ -> As a minimal-viable capability, the KV Store System, designed as a master/slave(Data Node) architecture, operates with N datanodes that can be tweaked/configurable, albeit requiring a startup all-over.\
-_Ideas for Extension_ ->  
-a. An Auto-Scaling Group [ASG](https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-groups.html) or alternatively an [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) for Scale-Out, [VPA](https://cloud.google.com/kubernetes-engine/docs/concepts/verticalpodautoscaler) for Scale-Up in Cloud-Native/Container Orch. oriented implementation.\
-b. A configurable Replica Set(pod replication), augmented with Service Registry/Discovery, rather than explicit pod/node <-> Port Mapping/Coupling as implemented in this solution. 
-
+_Ideas for Extension_ ->  \
+Scaling Master/Query Node:\
+a. Stateless-(Auto:AWS) An [ALB](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) atop bunch of 'master' (doing the role of `Query Nodes`) is a possibility. Master/Query Nodes are further tied to an AutoScalingGroup [ASG](https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-groups.html). It'd be better to keep in-memory caches in a "Centralized Cache/Repo/Store", unless a [sticky Session](https://stackoverflow.com/a/13641836/3356424)/IP-/Key- hash based request routing (from LB -> Master) like coupling is ensured. \
+b. Stateless-(Auto:K8s) A HorizontalPodAutoscaler i.e [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) to scale in/out pods within specified min- and max- replicas(scale in/out), and a VerticalPodAutoScaler i,e `VPA` for scaling up/down. Little effective for merely connection pool and in-memory caches(this further needs 'sticky-session' kind of setup b/w master-svc and pods). What may still FWIW be even more rewarding is a [Multidimensional Pod Autoscaling](https://cloud.google.com/kubernetes-engine/docs/how-to/multidimensional-pod-autoscaling) : horizontally w.r.t CPU, vertically w.r.t Memory. \ 
+c. Stateless-(Scaling) A [Replica Set](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/) for master nodes, or specified number of replicas in the [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/). \
+d. Stateful-(Replicated [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)) it runs a group of Pods, maintaining a sticky identity. Management is a bit complicated, w.r.t LCM of PV/PVCs, graceful deletion. \
+- Scaling DataNodes:\
+a. Stateful(recommended)- A StatefulSet for each of N DataNodes/replicas, wherein each DN has a Persistent Storage(using [PVC](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)).\
+b. Stateless- If storage can be 'delegated' to a NFS(Network FileSystem) or an [Object-Store](https://min.io/), e.g [AWS S3](https://aws.amazon.com/blogs/big-data/get-started-managing-partitions-for-amazon-s3-tables-backed-by-the-aws-glue-data-catalog/), e.g `keyspace=<>/shard=<>`, DNs go 'state-less'(barring the in-memory cache) and can be scaled just as Masternode. However, Network I/O, latency, increases big time, compared to a 'co-located' compute and storage, besides the storage/persistence mode now moved to disk/FS instead of in-memory/RAM-lookup, which is undesired. \ 
 
 - **Available**(achieved for Data/Nodes using sharding and replication) \
 _Capability_ -> A minimal, decoupled with nodes, capability around availability of data. Data is broken into shards (Data furthermore is clubbed as/into Keyspaces), such that a node going down doesn't impact availability of the contained shards, recoverable from nodes containing their replicas, and are thereafter, resharded onto/amongst available nodes.\
@@ -86,7 +91,7 @@ cd <path-to-repo>
 source .venv_311/bin/activate
 pip install -r requirements.txt
 export PYTHONPATH=$PYTHONPATH:`pwd`
-python my_immutable_KV_store/src/my_immutable_kv_store/my_imm_kv_store.py --data data
+python my_immutable_KV_store/src/my_immutable_kv_store/my_imm_kv_store.py --data data --clear
 popd
 ```
 This should show up something like below:
@@ -105,34 +110,36 @@ This should show up a CLI like below:
 ## FAQs:
 - How much data can your server handle? How could you improve it so it can handle even larger datasets? \
 _Ans_: The approach, if combined with:
-1. An AutoScaling aspect, either an ASG or HPA, VPA
-2. Faster, parallel writes
-3. Capabilities to Disk Spills
+1. An AutoScaling aspect, either an ASG or HPA, VPA (best of both worlds). 
+2. Faster, parallel writes, asynchronous reads/request handling.
+3. Capabilities to Disk Spills. DN Memory may have to be mapped to keep `executor-memory`(for load-able shards), `buffer`(for loading subset of shard likely to contain the key, i.e 'page' the offline-shard load) \
 Can be almost scalable limitlessly, however, each power coming with a clause:
-1. ASG needs lighter AMIs, HPA/VPA(may lead to/accompanied with cluster autoscaling) may not have a 'downtime' but an increased latency/draining.
+1. ASG needs lighter AMIs, HPA/VPA(may lead to/accompanied with cluster autoscaling) may have but, an increased latency/draining.
 2. Would certainly need an 'Indexer' Node, in addition to master node, require config around CHUNKSIZE etc to be tweaked accordingly. 
 3. Convincingly increases the latency. 
 However, as a back of the envelope, given each KV is not beyond 1KB, a single node [R5.2xlarge](https://aws.amazon.com/ec2/instance-types/r5/) equivalent Local Machine can accommodate ~50M KV pairs.\
-Scaling it out further, with right instance type choices, confifguration adjustments, should be able to provide an Industry-standard S.L.A
+Scaling it out further, with right instance type choices, configuration adjustments, should be able to provide an Industry-standard S.L.A
 
 - How many milliseconds it takes for the client to get a response on average? How could you improve the latency? \
-_Ans_: It is taking roughly ~20-30msecs, albeit this KV Store implementation has not been "load tested" to get to stats around mean, median, p90, p99 etc. \
+_Ans_: It is taking roughly ~15-20msecs, albeit this KV Store implementation has not been "load tested" to get to stats around mean, median, p90, p99 etc. \
 The Latency can be improved, further as: \
--> introducing Cacheing Layers, both at MasterNode as well as DataNodes(they keep it all in memory but have to look up further into shards).\
+-> [Done] introduced Cacheing Layers(latency down to <10msecs, both at MasterNode as well as DataNodes(they keep it all in memory but have to look up further into shards).\
 -> leveraging replicas esp when primary shards may also withstand extensive 'writes'.\
 -> trying not to "spill" the overflowing KV rows into 'disk'. \
 -> Dictionaries are bound to give O(NlogN) where N is number of Keys, as these are [Weight-Balanced Trees](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree) underneath. \
 -> Mitigating 'Network I/O' as much as possible. DataNode(s) and MasterNodes can be colocated from anywhere being in same rack to atleast same [AZ](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html), or Region. \
 -> Better tech stack of implementation, e.g a Low Level Language like C++ (that also has Redis, Algolia, SkyllaDB etc. all implemented in). Python as a high-level is anyways not a good choice thanks to GIL aching concurrency (FastAPI with asynchronous Startlette/Waitress is albeit good enough). Java can give better mileage, far as immutability is assured- GC overheads are otherwise problematic! \
--> We already did "Keyspacing".\
--> We already did "gRPC" over HTTP/2 using Protobufs.\
--> Use a gRPC channel pool against respective data_node, this must however be properly 'LifeCycleManaged', i.e when datanode goes down / new added. \ 
+-> [Done] We already did "Keyspacing". This means, smaller/relevant shards referenced as sub-keys in the storage map of the DN. \
+-> [Done] We already did "gRPC" over HTTP/2 using Protobufs.We further, maintain gRPC Connection Pools in the master node(s), as alluded to, below. \
+-> [Done] Use a gRPC channel pool against respective data_node, this must however be properly 'LifeCycleManaged', i.e when datanode goes down / new added. \ 
 -> Avoiding Anti-Patterns e.g RF = Num of Nodes because cluster shall be, esp when records are mutable, simply always getting the cluster 'consistent'- lots of Network I/O.
 
 - What are some failure patterns that you can anticipate? \
 _Ans_:
-1. Out Of Memory Errors- if data to be served is huge, doesnt fit in RAM constraints of datanodes, and disk spill isn't viable.
-2. Node failures- resharding may be a time-taking process, albeit reads(only) should still be admissible
+1. Out Of Memory Errors- if data to be served is huge, doesnt fit in RAM constraints of datanodes, and disk spill isn't viable, then OOMs shall haunt us during data load/KV Store warm up.
+2. Scaling "up" i.e VPA may need K8s cluster node to be compliant/well-configured to accomadate DN pod after (vertical) autoscaling.
+3. Possible failures by virtue of scaling in/out, as the node maybe drained- maybe more pronounced during VPA.
+3. Node failures- resharding may be a time-taking process, albeit reads(only) should still be admissible
 3. Hash Collisions, are but very unlikely. 
 4. We mitigated failures that indexing could have caused. Albeit, it will be better to have and use integrations to Distributed Data Processing frameworks e.g Spark, Hadoop that can "better" Bulk Index the KV Records, e.g [Spark-ES Connector](https://discuss.elastic.co/t/connector-for-elastic-search-8-6-2-and-databricks-spark-3-4-0/342746). 
 

@@ -11,19 +11,19 @@ from my_immutable_KV_store.src.my_immutable_kv_store.kv.state.INIcheckpointing i
 import my_immutable_KV_store.src.my_immutable_kv_store.utils.services as services
 from my_immutable_KV_store.src.my_immutable_kv_store.utils.profiling import timeit
 
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="My Immutable KV Store")
     parser.add_argument("--data", required=True, help="<keyspace>:<path> or <path>")
+    parser.add_argument("--clear", action='store_true', help="Clear checkpoint and lock files before loading data")
     return parser.parse_args()
 
 
 @timeit(level='DEBUG')
-def load_data(keyspace, path):
+def load_data(keyspace, path, to_clear=False):
     checkpointing = INICheckpointing(Config.CHECKPOINT_FILE)
+    if to_clear:
+        checkpointing.clear_checkpoints()
     kv_loader = KVStoreLoader(checkpointing, ChunkProcessor)
     kv_loader.load_data(keyspace, path)
     logger.success("Loaded Data into immutable KV Store")
@@ -42,7 +42,7 @@ def main():
     time.sleep(Config.SLEEP_WARMUP)
     if services.Services.perform_health_checks():
         logger.success("All nodes are healthy. Starting data load ...")
-        load_data(keyspace, path)
+        load_data(keyspace, path, args.clear)
     else:
         logger.critical("Health checks failed. Data load aborted.")
     for p in processes:

@@ -1,4 +1,5 @@
 class Config:
+    GRPC_DATANODE_POOL_SIZE = 5
     CACHE_TTL = 60
     DEFAULT_KEYSPACE = 'default'
     GRPC_MASTER_PORT = 50050  # master listens to cli at 9000/REST over HTTP, but the system internally uses gRPC

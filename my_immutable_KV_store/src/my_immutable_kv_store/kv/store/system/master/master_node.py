@@ -1,5 +1,7 @@
 import multiprocessing
+from collections import defaultdict
 from contextlib import asynccontextmanager
+import random
 
 import grpc
 from concurrent import futures
@@ -25,6 +27,9 @@ import my_immutable_KV_store.src.my_immutable_kv_store.kv.store.system.transport
 from my_immutable_KV_store.src.my_immutable_kv_store.config.config import Config
 
 import logging
+
+from my_immutable_KV_store.src.my_immutable_kv_store.kv.store.system.transport.pool.grpc_pool_utils import GRPCPoolUtils
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -36,17 +41,36 @@ class MasterNodeServicer(master_node_pb2_grpc.MasterNodeServicer):
             replication_factor=Config.REPLICATION_FACTOR,
             nodes=Config.NODE_COUNT
         )
-        self.node_status = {f"node_{i}": {"port": Config.DATA_PORT+i, "grpc_port": Config.GRPC_PORT+i} \
-                            for i in range(Config.NODE_COUNT)}
+        self.node_status = {f"{GRPCPoolUtils.get_node_addr_key(i)}": {
+                "port": Config.DATA_PORT+i,
+                "grpc_port": Config.GRPC_PORT+i
+            } for i in range(Config.NODE_COUNT)
+        }
         self.failed_nodes = set()
+        # initialize gRPC connection pool
+        self.pool_size = Config.GRPC_DATANODE_POOL_SIZE
+        self.connection_pool = defaultdict(list)
+        self._initialize_connection_pool()
+
+    # not a Single Responsibility Rule
+    def _initialize_connection_pool(self):
+        for node, details in self.node_status.items():
+            addr_key = f"localhost:{details['grpc_port']}"
+            for _ in range(self.pool_size):
+                channel = grpc.insecure_channel(addr_key)
+                stub = data_node_pb2_grpc.DataNodeStub(channel)
+                self.connection_pool[node].append(stub)
+
+    def get_stub_from_pool(self, node):
+        if node not in self.connection_pool:
+            raise ValueError(f"No pool found for address {node}")
+        return random.choice(self.connection_pool[node])
 
     def Put(self, request, context):
         shard_id = self.consistent_hashing.get_shard_id(request.keyspace, request.key)
         node_id = self.consistent_hashing.get_node_for_shard(request.keyspace, shard_id)
-        node = self.node_status[f"node_{node_id}"]
+        stub = self.get_stub_from_pool(GRPCPoolUtils.get_node_addr_key(node_id))
 
-        channel = grpc.insecure_channel(f'localhost:{node["grpc_port"]}')
-        stub = data_node_pb2_grpc.DataNodeStub(channel)
         response = stub.Put(data_node_pb2.PutRequest(key=request.key, value=request.value, keyspace=request.keyspace, shard=str(shard_id)))
 
         return master_node_pb2.NodeResponse(status=response.status)
@@ -56,10 +80,8 @@ class MasterNodeServicer(master_node_pb2_grpc.MasterNodeServicer):
         if not shard_id:
             return master_node_pb2.NodeResponse(status=Config.NOT_FOUND, value=None)
         node_id = self.consistent_hashing.get_node_for_shard(request.keyspace, shard_id)
-        node = self.node_status[f"node_{node_id}"]
+        stub = self.get_stub_from_pool(GRPCPoolUtils.get_node_addr_key(node_id))
 
-        channel = grpc.insecure_channel(f'localhost:{node["grpc_port"]}')
-        stub = data_node_pb2_grpc.DataNodeStub(channel)
         response = stub.Get(data_node_pb2.GetRequest(key=request.key, keyspace=request.keyspace, shard=str(shard_id)))
 
         return master_node_pb2.NodeResponse(status=response.status, value=response.value)
