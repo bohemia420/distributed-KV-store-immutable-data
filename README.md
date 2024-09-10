@@ -39,14 +39,14 @@ Basis the load at present at the nodes, and furthermore, when "data" maybe subje
 - *Durability*: \
 _Ideas for Extension_: we may implement: \
 a. Shard Size/number per keyspace best practices, just like Elasticsearch indexes settings. \
-b. Disk Spills: E.g 'overflowing' shards may be allowed to spill further records into disks, as a tradeoff to cost-savviness(or resource constrainrs) v/s latency. 
+b. Disk Spills(specialised DSes like MemTable -> SSTables -> LSM(Merge/Compaction e.g in *RockDB* is a better bet): E.g 'overflowing' shards may be allowed to spill further records into disks, as a tradeoff to cost-savviness(or resource constrainrs) v/s latency. 
 
 Furthermore, it incorporates some other good-to-have capabilities as following practices:
 
 #### Data Load:
 -> Data Load/Indexing with Checkpointing: File(s) are read as 'chunks' of N rows each.  \
 -> Data Load/Indexing with speed and memory optimization: furthermore processed 'parallely' using multiprocessing in Python.\
--> (Atleast-Once) Data Load Semantics: The chunk_ids are 'checkpointed' only after successful processing. 
+-> (Atleast-Once) Data Load Semantics: The chunk_ids are 'checkpointed' only after successful processing. Additionally, for ingestions 'outside' of a file upload using this 'loader', we may encourage indexing/master nodes to use [WAL](https://en.wikipedia.org/wiki/Write-ahead_logging) for K-V pairs published by 'producers'. WAL can be replayed in tandem with its corresponding checkpoint. \
 
 #### Data Persistence:
 -> Routing: UUID4 Keys are hashed and mapped accordingly into similar shards, which are maintained using Consistent Hashing Ring and easily looked up by Master Node during Retrieval.\
@@ -113,10 +113,11 @@ _Ans_: The approach, if combined with:
 1. An AutoScaling aspect, either an ASG or HPA, VPA (best of both worlds). 
 2. Faster, parallel writes, asynchronous reads/request handling.
 3. Capabilities to Disk Spills. DN Memory may have to be mapped to keep `executor-memory`(for load-able shards), `buffer`(for loading subset of shard likely to contain the key, i.e 'page' the offline-shard load) \
+4. extremely large datasets might want this to become an 'embedded Key-Value' Store like [RocksDB](https://github.com/facebook/rocksdb), such that data now lies on flash drives/SSDs. This shall need an implementation of *Log-Structured-Merge-Database* **(LSM)** off SSTables and BloomFilters. \
 Can be almost scalable limitlessly, however, each power coming with a clause:
-1. ASG needs lighter AMIs, HPA/VPA(may lead to/accompanied with cluster autoscaling) may have but, an increased latency/draining.
-2. Would certainly need an 'Indexer' Node, in addition to master node, require config around CHUNKSIZE etc to be tweaked accordingly. 
-3. Convincingly increases the latency. 
+1. ASG needs lighter AMIs, HPA/VPA(may lead to/accompanied with cluster autoscaling) may have but, an increased latency/draining. \
+2. Would certainly need an 'Indexer' Node, in addition to master node, require config around CHUNKSIZE etc to be tweaked accordingly. \
+3. Convincingly increases the latency. \
 However, as a back of the envelope, given each KV is not beyond 1KB, a single node [R5.2xlarge](https://aws.amazon.com/ec2/instance-types/r5/) equivalent Local Machine can accommodate ~50M KV pairs.\
 Scaling it out further, with right instance type choices, configuration adjustments, should be able to provide an Industry-standard S.L.A
 
@@ -133,11 +134,12 @@ The Latency can be improved, further as: \
 -> [Done] We already did "Keyspacing". This means, smaller/relevant shards referenced as sub-keys in the storage map of the DN. \
 -> [Done] We already did "gRPC" over HTTP/2 using Protobufs.We further, maintain gRPC Connection Pools in the master node(s), as alluded to, below. \
 -> [Done] Use a gRPC channel pool against respective data_node, this must however be properly 'LifeCycleManaged', i.e when datanode goes down / new added. \ 
+-> [Done] We already used keep-alive setting of 60secs at server(FastAPI) level- albeit marginal improvement. Also had a 'global' masternode grpc channel/stub. \ 
 -> Avoiding Anti-Patterns e.g RF = Num of Nodes because cluster shall be, esp when records are mutable, simply always getting the cluster 'consistent'- lots of Network I/O.
 
 - What are some failure patterns that you can anticipate? \
 _Ans_:
-1. Out Of Memory Errors- if data to be served is huge, doesnt fit in RAM constraints of datanodes, and disk spill isn't viable, then OOMs shall haunt us during data load/KV Store warm up.
+1. Out Of Memory Errors- if data to be served is huge, doesnt fit in RAM constraints of datanodes, and disk spill isn't viable(or LevelDB like implementation for both RAM(MemTable) and Flash(SSTables, LSM), then OOMs shall haunt us during data load/KV Store warm up.
 2. Scaling "up" i.e VPA may need K8s cluster node to be compliant/well-configured to accomadate DN pod after (vertical) autoscaling.
 3. Possible failures by virtue of scaling in/out, as the node maybe drained- maybe more pronounced during VPA.
 3. Node failures- resharding may be a time-taking process, albeit reads(only) should still be admissible
