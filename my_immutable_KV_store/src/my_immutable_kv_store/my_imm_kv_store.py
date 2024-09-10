@@ -37,16 +37,20 @@ def main():
     processes = [multiprocessing.Process(target=services.Services.start_master_node)]
     for i in range(Config.NODE_COUNT):
         processes.append(multiprocessing.Process(target=services.Services.start_data_node, args=(i,)))
-    for p in processes:
-        p.start()
-    time.sleep(Config.SLEEP_WARMUP)
-    if services.Services.perform_health_checks():
-        logger.success("All nodes are healthy. Starting data load ...")
-        load_data(keyspace, path, args.clear)
-    else:
-        logger.critical("Health checks failed. Data load aborted.")
-    for p in processes:
-        p.join()
+    try:
+        for p in processes:
+            p.start()
+        time.sleep(Config.SLEEP_WARMUP)
+        if services.Services.perform_health_checks():
+            logger.success("All nodes are healthy. Starting data load ...")
+            load_data(keyspace, path, args.clear)
+        else:
+            logger.critical("Health checks failed. Data load aborted.")
+        for p in processes:
+            p.join()
+    except KeyboardInterrupt:
+        logger.error("Shutting down, killing all master and datanode processes ...")
+        [p.kill() for p in processes]
 
 
 if __name__ == "__main__":
