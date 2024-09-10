@@ -1,6 +1,7 @@
 class Config:
-    GRPC_DATANODE_POOL_SIZE = 5
-    CACHE_TTL = 60
+    KEEP_ALIVE_HTTP = 60  # keep alive the client <-> master node connection
+    GRPC_DATANODE_POOL_SIZE = 4  # gRPC connection pool against each DN
+    CACHE_TTL = 60  # keep the retrieved key-val in FastAPI cache of master node.
     DEFAULT_KEYSPACE = 'default'
     GRPC_MASTER_PORT = 50050  # master listens to cli at 9000/REST over HTTP, but the system internally uses gRPC
     GRPC_PORT = 50051  # GRPC Ports for DataNode(s)

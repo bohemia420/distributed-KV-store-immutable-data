@@ -121,7 +121,8 @@ However, as a back of the envelope, given each KV is not beyond 1KB, a single no
 Scaling it out further, with right instance type choices, configuration adjustments, should be able to provide an Industry-standard S.L.A
 
 - How many milliseconds it takes for the client to get a response on average? How could you improve the latency? \
-_Ans_: It is taking roughly ~15-20msecs, albeit this KV Store implementation has not been "load tested" to get to stats around mean, median, p90, p99 etc. \
+_Ans_: It is taking roughly **~10-15msecs**(warm up/1st call up takes _20-30msecs_), albeit this KV Store implementation has not been "load tested" to get to stats around mean, median, p90, p99 etc. \
+The cached calls, however, wind up within **4-8msecs**. \
 The Latency can be improved, further as: \
 -> [Done] introduced Cacheing Layers(latency down to <10msecs, both at MasterNode as well as DataNodes(they keep it all in memory but have to look up further into shards).\
 -> leveraging replicas esp when primary shards may also withstand extensive 'writes'.\

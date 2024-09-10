@@ -142,12 +142,20 @@ async def lifespan(_: FastAPI):
     FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
     p = multiprocessing.Process(target=serve_grpc, args=())
     p.start()
+    global grpc_channel, grpc_stub
+    grpc_channel = grpc.insecure_channel(f'localhost:{Config.GRPC_MASTER_PORT}')
+    grpc_stub = master_node_pb2_grpc.MasterNodeStub(grpc_channel)
     yield
     p.kill()
+    if grpc_channel:
+        grpc_channel.close()
     #  TODO: Implement graceful Shutdown of GRPC and FastAPI services
 
 
 app = FastAPI(lifespan=lifespan)
+
+grpc_channel = None
+grpc_stub = None
 
 
 # FastAPI endpoints for management or monitoring
@@ -160,14 +168,13 @@ async def health_check():
 @cache(expire=Config.CACHE_TTL)
 async def retrieve(key=None, keyspace=None):
     keyspace = Config.DEFAULT_KEYSPACE if not keyspace else keyspace
-    # TODO use a channel pool instead, tied to each data_node
-    channel = grpc.insecure_channel(f'localhost:{Config.GRPC_MASTER_PORT}')
-    stub = master_node_pb2_grpc.MasterNodeStub(channel)
-    response = stub.Get(master_node_pb2.NodeRequest(key=key, value=None, keyspace=keyspace))
+    # channel = grpc.insecure_channel(f'localhost:{Config.GRPC_MASTER_PORT}')
+    # grpc_stub = master_node_pb2_grpc.MasterNodeStub(channel)
+    response = grpc_stub.Get(master_node_pb2.NodeRequest(key=key, value=None, keyspace=keyspace))
     if response.value:
         return JSONResponse(status_code=status.HTTP_200_OK, content={"status": Config.SUCCESS, "value": response.value})
     else:
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"status": Config.NOT_FOUND, "value": None})
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=Config.MASTER_PORT)
+    uvicorn.run(app, host="0.0.0.0", port=Config.MASTER_PORT, timeout_keep_alive=Config.KEEP_ALIVE_HTTP)
